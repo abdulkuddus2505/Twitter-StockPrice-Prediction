@@ -1,0 +1,9 @@
+pandas
+numpy
+kafka-python
+vaderSentiment
+scikit-learn
+matplotlib
+streamlit
+pyspark
+yfinance
