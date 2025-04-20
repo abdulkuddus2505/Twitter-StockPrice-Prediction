@@ -1,7 +1,22 @@
 from kafka import KafkaProducer
+from google.cloud import storage
 import pandas as pd
 import json
+import io
 import time
+
+
+# === Google Cloud Storage Configuration ===
+bucket_name = "woodstock-twitter-stock"
+blob_name = "twitter-data.csv"  # e.g., "twitter_data/twitter-data.csv"
+
+# Initialize GCS client
+client = storage.Client()
+bucket = client.bucket(bucket_name)
+blob = bucket.blob(blob_name)
+
+# Download the CSV content as string
+csv_data = blob.download_as_text()
 
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
