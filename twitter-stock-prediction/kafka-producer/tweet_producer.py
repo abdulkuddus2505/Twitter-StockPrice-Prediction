@@ -16,16 +16,22 @@ bucket = client.bucket(bucket_name)
 blob = bucket.blob(blob_name)
 
 # Download the CSV content as string
-csv_data = blob.download_as_text()
+csv_bytes = blob.download_as_bytes()
+csv_data = csv_bytes.decode('utf-8', errors='replace') 
+
+df = pd.read_csv(io.StringIO(csv_data), delimiter=',').fillna("")
+df = df.rename(columns={
+    'Mon Apr 06 22:19:45 PDT 2009': "Date",
+    "@switchfoot http://twitpic.com/2y1zl - Awww, that's a bummer.  You shoulda got David Carr of Third Day to do it. ;D": "Text"
+})
+df = df[['Date', 'Text']]
+
 
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     value_serializer=lambda x: json.dumps(x).encode('utf-8')
 )
 
-df = pd.read_csv("data/twitter-data.csv",  delimiter=',').fillna("")
-df = df.rename(columns={'Mon Apr 06 22:19:45 PDT 2009': "Date", "@switchfoot http://twitpic.com/2y1zl - Awww, that's a bummer.  You shoulda got David Carr of Third Day to do it. ;D": "Text"})
-df = df[['Date', 'Text']]
 
 for index, row in df.iterrows():
     message = {
