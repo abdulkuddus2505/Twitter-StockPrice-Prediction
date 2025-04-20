@@ -18,6 +18,7 @@ sentiment_udf = udf(analyze_sentiment, StringType())
 
 spark = SparkSession.builder \
     .appName("TweetSentimentStreaming") \
+    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:3.3.1") \
     .getOrCreate()
 
 df_raw = spark.readStream \
