@@ -4,6 +4,7 @@ from pyspark.sql.types import StringType
 import json
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
+# Sentiment Analysis Function
 def analyze_sentiment(text):
     analyzer = SentimentIntensityAnalyzer()
     score = analyzer.polarity_scores(text)["compound"]
@@ -16,11 +17,13 @@ def analyze_sentiment(text):
 
 sentiment_udf = udf(analyze_sentiment, StringType())
 
+# Spark Session
 spark = SparkSession.builder \
     .appName("TweetSentimentStreaming") \
     .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:3.3.1") \
     .getOrCreate()
 
+# Read from Kafka
 df_raw = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "localhost:9092") \
@@ -29,6 +32,7 @@ df_raw = spark.readStream \
 
 df_json = df_raw.selectExpr("CAST(value AS STRING)")
 
+# UDFs to extract text and date
 @udf(returnType=StringType())
 def extract_text(json_string):
     return json.loads(json_string)["text"]
@@ -37,10 +41,12 @@ def extract_text(json_string):
 def extract_date(json_string):
     return json.loads(json_string)["date"]
 
+# Parse and add sentiment
 df_parsed = df_json.withColumn("text", extract_text(col("value"))) \
                    .withColumn("date", extract_date(col("value"))) \
                    .withColumn("sentiment", sentiment_udf(col("text")))
 
+# Write to CSV
 query = df_parsed.select("date", "text", "sentiment") \
     .writeStream \
     .format("csv") \
