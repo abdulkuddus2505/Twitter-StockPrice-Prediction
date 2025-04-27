@@ -18,7 +18,6 @@ fig, ax = plt.subplots()
 stock_df.set_index("Date")["Close"].plot(ax=ax)
 st.pyplot(fig)
 
-# === NEW ===
 st.write("### 📊 Predict Stock Movement")
 
 # Options for user
