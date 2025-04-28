@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score
 import joblib
 
 # Paths
-SPARK_OUTPUT_DIR = "data/output"
+SPARK_OUTPUT_DIR = "/home/m24de3002/Twitter-StockPrice-Prediction/twitter-stock-prediction/spark_sentiment/data/output"
 STOCK_DATA_PATH = "data/AAPL_stock_data.csv"
 MODEL_PATH = "data/model.pkl"
 
@@ -20,6 +20,9 @@ hist = ticker.history(start="2007-12-01")
 hist.reset_index(inplace=True)
 hist['Date'] = hist['Date'].dt.strftime('%Y-%m-%d')
 hist.to_csv(STOCK_DATA_PATH, index=False)
+
+print("Stock data shape:", hist.shape)
+hist.head()
 
 # Load Spark sentiment output
 sentiment_files = [
@@ -41,18 +44,32 @@ if not sentiment_dataframes:
     raise ValueError("No valid sentiment data found. All files were empty.")
 
 sentiment_df = pd.concat(sentiment_dataframes, ignore_index=True)
+sentiment_df["date"] = sentiment_df["date"].str.replace(r"\s[A-Z]{2,4}\s", " ", regex=True)
 sentiment_df["date"] = pd.to_datetime(sentiment_df["date"], errors='coerce').dt.strftime("%Y-%m-%d")
+
 sentiment_df = sentiment_df.dropna(subset=["date"])
+
+print(sentiment_df["sentiment"].value_counts())
+
 
 # Aggregate sentiment per day
 sentiment_summary = sentiment_df.groupby("date")["sentiment"].value_counts().unstack().fillna(0)
 sentiment_summary["net_sentiment"] = sentiment_summary.get("Positive", 0) - sentiment_summary.get("Negative", 0)
 sentiment_summary.reset_index(inplace=True)
 
+print(sentiment_summary)
 # Merge with stock data
+print("Merging sentiment with stock data...")
+
+hist['Date'] = pd.to_datetime(hist['Date']).dt.strftime('%Y-%m-%d')
+sentiment_summary['Date'] = pd.to_datetime(sentiment_summary['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+
 merged = pd.merge(hist, sentiment_summary, left_on="Date", right_on="date", how="inner")
 merged["price_diff"] = merged["Close"].diff().shift(-1)
 merged["target"] = merged["price_diff"].apply(lambda x: 1 if x > 0 else 0)
+
+if merged.empty:
+    print("⚠️ No matching dates found between tweets and stock data.")
 
 # Train Random Forest Model
 X = merged[["net_sentiment"]].fillna(0)
